@@ -1,0 +1,807 @@
+=== CODE CELL 0 (notebook idx 4) ===
+# 1. Data Handling and Preprocessing
+import pandas as pd  # For handling tabular data
+import numpy as np  # For numerical operations
+from sklearn.pipeline import Pipeline  # For creating pipelines
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, MinMaxScaler  # For encoding and scaling data
+from sklearn.compose import ColumnTransformer  # For transforming columns in the dataset
+from sklearn.model_selection import train_test_split, cross_val_score  # For splitting and validating data
+
+# 2. Statistical Analysis
+import scipy.stats as stats  # For statistical functions
+from scipy.stats import chi2_contingency  # For Chi-square tests
+
+# 3. Machine Learning Models
+from sklearn.ensemble import RandomForestClassifier  # Random Forest model
+from xgboost import XGBClassifier  # XGBoost model
+from lightgbm import LGBMClassifier  # LightGBM model
+from catboost import CatBoostClassifier  # CatBoost model
+from sklearn.svm import SVC  # Support Vector Classifier
+from sklearn.linear_model import LogisticRegression  # Logistic Regression model
+
+# 4. Model Evaluation and Metrics
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report  # For performance metrics
+
+# 5. Data Visualization
+import matplotlib.pyplot as plt  # For basic plots
+import seaborn as sns  # For advanced statistical visualizations
+import plotly.express as px  # For interactive visualizations
+
+# 6. Handling Class Imbalance (Optional)
+from imblearn.over_sampling import SMOTE  # Synthetic Minority Oversampling Technique
+
+# 7. Joblib (For Saving Models)
+import joblib  # For saving models
+
+# 8. Warnings
+import warnings
+warnings.filterwarnings("ignore")  # Suppress unnecessary warnings
+
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+
+
+
+=== CODE CELL 1 (notebook idx 6) ===
+## Import Datasets
+df = pd.read_csv('../Datasets/1/ckd_stages_dataset.csv')
+
+df.head(100)
+
+=== CODE CELL 2 (notebook idx 7) ===
+df.info()
+
+=== CODE CELL 3 (notebook idx 9) ===
+df.describe().T
+
+=== CODE CELL 4 (notebook idx 11) ===
+# Identify categorical and numerical features
+categorical_features = df.select_dtypes(include=['object']).columns.tolist()
+numerical_features = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+
+categorical_features
+
+
+=== CODE CELL 5 (notebook idx 12) ===
+numerical_features
+
+
+=== CODE CELL 6 (notebook idx 13) ===
+# Plot distributions of numerical features
+df[numerical_features].hist(figsize=(12, 10), bins=20, color='skyblue', edgecolor='black')
+plt.suptitle("Feature Distributions", fontsize=14)
+plt.show()
+
+
+=== CODE CELL 7 (notebook idx 15) ===
+# Visualizing categorical features
+plt.figure(figsize=(12, 32))
+for i, col in enumerate(categorical_features, 1):
+    plt.subplot(8, 2, i)
+    sns.countplot(x=df[col], palette="pastel")
+    plt.title(col)
+    plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+
+=== CODE CELL 8 (notebook idx 17) ===
+# outlier detection
+
+plt.figure(figsize=(12, 32))
+for i, col in enumerate(numerical_features, 1):
+    plt.subplot(4, 4, i)
+    sns.boxplot(y=df[col], color="lightblue")
+    plt.title(col)
+plt.tight_layout()
+plt.show()
+
+
+=== CODE CELL 9 (notebook idx 18) ===
+#  Checking Class Imbalance in Target Variable (stage)
+plt.figure(figsize=(6,4))
+sns.countplot(x=df["ckd_stage"], palette="pastel")
+plt.title("Distribution of CKD Stages")
+plt.xlabel("CKD Stage")
+plt.ylabel("Count")
+plt.show()
+
+
+=== CODE CELL 10 (notebook idx 20) ===
+df_copy = df.copy()
+df_copy
+
+=== CODE CELL 11 (notebook idx 21) ===
+# Identify numerical and categorical columns
+numerical_cols = df.select_dtypes(include=['number']).columns
+categorical_cols = df.select_dtypes(include=['object']).columns
+
+# Convert object-based numerical features to float64
+num_obj_cols = ["pcv", "wc", "rc"]  # Ensure these are actually object-based numbers
+for col in num_obj_cols:
+    df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to float64
+
+# Impute missing values
+df[numerical_cols] = df[numerical_cols].fillna(df[numerical_cols].mean())  # Mean for numerical
+df[categorical_cols] = df[categorical_cols].fillna(df[categorical_cols].mode().iloc[0])  # Mode for categorical
+
+
+
+print("Missing values handled, and object-based numerical features converted.")
+
+
+=== CODE CELL 12 (notebook idx 22) ===
+# Define columns with potential outliers
+outlier_cols = ["bgr", "sc", "pot", "age"]
+
+# Function to handle outliers using IQR (Capping method)
+def handle_outliers(df, columns):
+    for col in columns:
+        Q1 = df[col].quantile(0.25)  # First quartile (25th percentile)
+        Q3 = df[col].quantile(0.75)  # Third quartile (75th percentile)
+        IQR = Q3 - Q1  # Interquartile range
+
+        # Define upper and lower bounds
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+
+        # Cap the outliers instead of removing them
+        df[col] = df[col].clip(lower=lower_bound, upper=upper_bound)
+
+    return df
+
+# Apply outlier handling
+df = handle_outliers(df, outlier_cols)
+
+
+
+print("Outliers handled using the IQR capping method.")
+
+
+=== CODE CELL 13 (notebook idx 23) ===
+### Step 1: Treat 'al' and 'su' as categorical
+df["al"] = df["al"].astype("category")
+df["su"] = df["su"].astype("category")
+
+### Step 2: Investigate Outliers in 'sc', 'bgr', 'pot'
+def plot_outliers(df, cols):
+    for col in cols:
+        plt.figure(figsize=(8, 4))
+        sns.boxplot(x=df[col])
+        plt.title(f"Boxplot of {col}")
+        plt.show()
+
+# Visualize outliers
+plot_outliers(df, ["sc", "bgr", "pot"])
+
+# Check extreme values
+print(df[["sc", "bgr", "pot"]].describe())
+
+### Step 3: Handle Skewed Features using Log and Box-Cox
+skewed_cols = ["bgr", "sc", "pot"]
+
+# Apply transformations
+for col in skewed_cols:
+    if (df[col] > 0).all():  # If all values are positive, use Box-Cox
+        df[col], _ = stats.boxcox(df[col])
+    else:  # Use log transformation if there are zeros
+        df[col] = np.log1p(df[col])
+
+
+
+print("Skewed features transformed, outliers investigated, and categorical conversion completed.")
+
+
+=== CODE CELL 14 (notebook idx 24) ===
+df.head(20)
+
+=== CODE CELL 15 (notebook idx 25) ===
+print("Categorical features:", df.select_dtypes(include=['object']).columns)
+print("Numerical features:", df.select_dtypes(include=['number']).columns)
+
+
+=== CODE CELL 16 (notebook idx 26) ===
+# Save categorical and numerical features into a df
+feature_types = pd.DataFrame({
+    'feature': df.columns,
+    'type': [df[col].dtype for col in df.columns]
+})
+feature_types['categorical'] = feature_types['feature'].apply(lambda x: x in df.select_dtypes(include=['object']).columns)
+feature_types['numerical'] = feature_types['feature'].apply(lambda x: x in df.select_dtypes(include=['number']).columns)
+
+
+=== CODE CELL 17 (notebook idx 27) ===
+feature_types
+
+
+=== CODE CELL 18 (notebook idx 28) ===
+categorical_columns = df.select_dtypes(include=['object', 'category'])
+categorical_columns
+
+=== CODE CELL 19 (notebook idx 29) ===
+
+# Remove decimal points (convert to integers) for columns 'al' and 'su'
+df['al'] = df['al'].astype(int)
+df['su'] = df['su'].astype(int)
+
+
+# Display the updated DataFrame
+df.head()
+
+=== CODE CELL 20 (notebook idx 30) ===
+df['ckd_stage'].unique()
+
+=== CODE CELL 21 (notebook idx 31) ===
+df['gfr'].unique()
+
+=== CODE CELL 22 (notebook idx 32) ===
+# Round the 'gfr' column to two decimal places
+df['gfr'] = df['gfr'].round(1)
+df['gfr'].unique()
+
+
+=== CODE CELL 23 (notebook idx 33) ===
+df['classification'].unique()
+
+=== CODE CELL 24 (notebook idx 34) ===
+# Strip leading/trailing whitespaces or tabs
+df['classification'] = df['classification'].str.strip()
+
+# Optionally, standardize to 'ckd' and 'notckd'
+df['classification'] = df['classification'].replace({'ckd\t': 'ckd'})
+df['classification'].unique()
+
+=== CODE CELL 25 (notebook idx 35) ===
+
+df['ane'].unique()
+
+=== CODE CELL 26 (notebook idx 36) ===
+df['pe'].unique()
+
+=== CODE CELL 27 (notebook idx 37) ===
+df['appet'].unique()
+
+=== CODE CELL 28 (notebook idx 38) ===
+df['cad'].unique()
+
+=== CODE CELL 29 (notebook idx 39) ===
+# Strip leading/trailing whitespaces and normalize to 'yes' or 'no'
+df['cad'] = df['cad'].str.strip()  # Remove leading/trailing spaces/tabs
+df['cad'] = df['cad'].replace({'yes': 'yes', ' no': 'no', 'yes ': 'yes', '\tno': 'no', '\tyes': 'yes'})
+df['cad'].unique()
+
+=== CODE CELL 30 (notebook idx 40) ===
+df['dm'].unique()
+
+=== CODE CELL 31 (notebook idx 41) ===
+# Strip leading/trailing whitespaces and normalize to 'yes' or 'no'
+df['dm'] = df['dm'].str.strip()  # Remove leading/trailing spaces/tabs
+df['dm'] = df['dm'].replace({'yes': 'yes', ' no': 'no', 'yes ': 'yes', '\tno': 'no', '\tyes': 'yes'})
+df['dm'].unique()
+
+
+=== CODE CELL 32 (notebook idx 42) ===
+df['htn'].unique()
+
+=== CODE CELL 33 (notebook idx 43) ===
+df['rc'].unique()
+
+=== CODE CELL 34 (notebook idx 44) ===
+df['wc'].unique()
+
+=== CODE CELL 35 (notebook idx 45) ===
+df['pcv'].unique()
+
+=== CODE CELL 36 (notebook idx 46) ===
+df['hemo'].unique()
+
+=== CODE CELL 37 (notebook idx 47) ===
+df['hemo'] = df['hemo'].abs().round(1)
+df['hemo'].unique()
+
+=== CODE CELL 38 (notebook idx 48) ===
+df['pot'].unique()
+
+=== CODE CELL 39 (notebook idx 49) ===
+df['pot'] = df['pot'].abs().round(1)
+df['pot'].unique()
+
+=== CODE CELL 40 (notebook idx 50) ===
+df['sod'].unique()
+
+=== CODE CELL 41 (notebook idx 51) ===
+df['sod'] = df['sod'].abs().round(1)
+df['sod'].unique()
+
+=== CODE CELL 42 (notebook idx 52) ===
+df['sc'].unique()
+
+=== CODE CELL 43 (notebook idx 53) ===
+# Approximate to two decimal places and make negatives positive (absolute values)
+df['sc'] = df['sc'].abs().round(2)
+df['sc'] = df['sc'].replace(0, 0.01) 
+df['sc'].unique()
+
+=== CODE CELL 44 (notebook idx 54) ===
+df['bgr'].unique()
+
+=== CODE CELL 45 (notebook idx 55) ===
+# Round the 'bgr' column to two decimal places
+df['bgr'] = df['bgr'].round(2)
+df['bgr'].unique()
+
+=== CODE CELL 46 (notebook idx 56) ===
+df['ba'].unique()
+
+=== CODE CELL 47 (notebook idx 57) ===
+df['pcc'].unique()
+
+=== CODE CELL 48 (notebook idx 58) ===
+df['pc'].unique()
+
+=== CODE CELL 49 (notebook idx 59) ===
+df['rbc'].unique()
+
+=== CODE CELL 50 (notebook idx 60) ===
+df['su'].unique()
+
+=== CODE CELL 51 (notebook idx 61) ===
+df['sg'].unique()
+
+=== CODE CELL 52 (notebook idx 62) ===
+df['al'].unique()
+
+=== CODE CELL 53 (notebook idx 63) ===
+numerical_columns= df.select_dtypes(include=['number' ])
+numerical_columns
+
+=== CODE CELL 54 (notebook idx 65) ===
+
+# Identify categorical columns in the dataframe
+categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
+
+# Ensure 'ckd_stage' is excluded from the list if it's included
+# categorical_columns.remove('ckd_stage')
+
+# 1. Crosstab and Visualization for each categorical column
+for col in categorical_columns:
+    print(f"Analyzing relationship between 'ckd_stage' and '{col}':")
+    
+    # Crosstab between 'ckd_stage' and the current categorical column
+    crosstab = pd.crosstab(df['ckd_stage'], df[col])
+    print(crosstab)
+    
+    # Perform Chi-Square test
+    chi2, p, dof, expected = chi2_contingency(crosstab)
+    print(f"Chi-Square Test p-value: {p}\n")
+    
+    # Plot a stacked bar chart for each categorical variable
+    crosstab.plot(kind='bar', stacked=True, title=f'Relationship between ckd_stage and {col}')
+    plt.ylabel('Frequency')
+    plt.xlabel(col)
+    plt.show()
+    
+    # Optionally, you can plot a heatmap of the contingency table
+    sns.heatmap(crosstab, annot=True, cmap='Blues', fmt='d')
+    plt.title(f'Heatmap of ckd_stage and {col}')
+    plt.show()
+
+
+
+=== CODE CELL 55 (notebook idx 67) ===
+
+# Identify numerical columns in the dataframe
+numerical_columns = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+
+# 1. Group-by Statistics
+for col in numerical_columns:
+    print(f"Group statistics for '{col}' by 'ckd_stage':")
+    print(df.groupby('ckd_stage')[col].describe())  # Summary statistics by ckd_stage
+    print("\n")
+
+# 2. Perform ANOVA test for each numerical column
+for col in numerical_columns:
+    groups = [df[df['ckd_stage'] == stage][col].dropna() for stage in df['ckd_stage'].unique()]
+    f_stat, p_val = stats.f_oneway(*groups)
+    print(f"ANOVA test for '{col}':")
+    print(f"F-statistic: {f_stat}, p-value: {p_val}\n")
+    if p_val < 0.05:
+        print(f"Statistically significant difference found for '{col}' between ckd_stage categories.\n")
+    else:
+        print(f"No significant difference for '{col}' between ckd_stage categories.\n")
+
+# 3. Visualizations: Box plots and Violin plots
+for col in numerical_columns:
+    plt.figure(figsize=(8, 6))
+    sns.boxplot(x='ckd_stage', y=col, data=df)
+    plt.title(f'Boxplot of {col} by ckd_stage')
+    plt.show()
+
+    plt.figure(figsize=(8, 6))
+    sns.violinplot(x='ckd_stage', y=col, data=df)
+    plt.title(f'Violin plot of {col} by ckd_stage')
+    plt.show()
+
+
+=== CODE CELL 56 (notebook idx 68) ===
+
+
+plt.figure(figsize=(20, 20))
+for i, col in enumerate(categorical_features, 1):
+    plt.subplot(8, 2, i)
+    sns.countplot(x=df[col], hue=df["ckd_stage"], palette="pastel")
+    plt.title(f"{col} vs. CKD Stage")
+plt.legend(title="Stage")
+plt.tight_layout()
+plt.show()
+
+
+=== CODE CELL 57 (notebook idx 70) ===
+df.head(25)
+
+=== CODE CELL 58 (notebook idx 72) ===
+df['sg'].unique()
+
+=== CODE CELL 59 (notebook idx 74) ===
+df['al'].unique()
+
+=== CODE CELL 60 (notebook idx 75) ===
+df.head(10)
+
+=== CODE CELL 61 (notebook idx 78) ===
+
+df_duplicate = df.copy()
+
+
+=== CODE CELL 62 (notebook idx 79) ===
+df.columns
+
+=== CODE CELL 63 (notebook idx 80) ===
+# Identify non-numeric columns
+non_numeric_cols = df.select_dtypes(exclude=['number']).columns.tolist()
+print("Non-numeric columns:", non_numeric_cols)
+
+
+=== CODE CELL 64 (notebook idx 81) ===
+
+# Define features to drop
+features_to_remove = ["id", "classification", "pcc", "ba", "su", "rbc", "pc","gfr", "classification"]
+
+# Drop selected features
+df = df.drop(columns=features_to_remove)
+
+
+print("Removed irrelevant features.")
+
+
+=== CODE CELL 65 (notebook idx 82) ===
+df.head(10)
+
+=== CODE CELL 66 (notebook idx 84) ===
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from sklearn.neural_network import MLPClassifier
+
+# Define categorical and numerical features
+categorical_features = ["htn", "dm", "cad", "appet", "pe", "ane"]
+numerical_features = [col for col in df.columns if col not in categorical_features + ["ckd_stage"]]
+
+# Define preprocessing steps
+preprocessor = ColumnTransformer([
+    ("one_hot", OneHotEncoder(drop="first"), categorical_features),  # One-Hot Encoding
+    ("scaler", StandardScaler(), numerical_features)  # Scaling numerical features
+])
+
+# Define models (pipelines)
+pipelines = {
+    "Random Forest": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", RandomForestClassifier(n_estimators=100, random_state=42))
+    ]),
+    "XGBoost": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", XGBClassifier(n_estimators=100, random_state=42, use_label_encoder=False, eval_metric="mlogloss"))
+    ]),
+    "LightGBM": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", LGBMClassifier(n_estimators=100, random_state=42))
+    ]),
+    "SVM": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", SVC(probability=True, random_state=42))
+    ]),
+    "Logistic Regression": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", LogisticRegression(max_iter=500, random_state=42))
+    ]),
+    "Gradient Boosting": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", GradientBoostingClassifier(n_estimators=100, random_state=42))
+    ]),
+    "ANN (MLPClassifier)": Pipeline([
+        ("preprocessing", preprocessor),
+        ("classifier", MLPClassifier(hidden_layer_sizes=(100,), max_iter=300, random_state=42))
+    ])
+}
+
+# Define target and features
+X = df.drop(columns=["ckd_stage"])
+y = df["ckd_stage"]
+
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# Train models 
+for model_name, pipeline in pipelines.items():
+    print(f"Training {model_name}...")
+    pipeline.fit(X_train, y_train)
+
+print("\n✅ All models have been trained")
+
+
+=== CODE CELL 67 (notebook idx 86) ===
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+import numpy as np
+import shap
+import matplotlib.pyplot as plt
+
+# Evaluation function
+def evaluate_model(model, X_test, y_test):
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
+    
+    metrics = {
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred, average='macro'),
+        "Recall": recall_score(y_test, y_pred, average='macro'),
+        "F1 Score": f1_score(y_test, y_pred, average='macro'),
+        "ROC AUC": roc_auc_score(y_test, y_proba, multi_class='ovr') if y_proba is not None else np.nan,
+        "Confusion Matrix": confusion_matrix(y_test, y_pred)
+    }
+    return metrics
+
+
+=== CODE CELL 68 (notebook idx 87) ===
+results = {}
+for name, pipeline in pipelines.items():
+    pipeline.fit(X_train, y_train)
+    metrics = evaluate_model(pipeline, X_test, y_test)
+    results[name] = metrics
+    print(f"\n📊 {name}")
+    for metric, value in metrics.items():
+        print(f"{metric}: \n{value if metric != 'Confusion Matrix' else value}")
+
+
+=== CODE CELL 69 (notebook idx 88) ===
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+import numpy as np
+import shap
+import matplotlib.pyplot as plt
+
+# Evaluation function
+def evaluate_model(model, X_test, y_test):
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
+    
+    metrics = {
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred, average='macro'),
+        "Recall": recall_score(y_test, y_pred, average='macro'),
+        "F1 Score": f1_score(y_test, y_pred, average='macro'),
+        "ROC AUC": roc_auc_score(y_test, y_proba, multi_class='ovr') if y_proba is not None else np.nan,
+        "Confusion Matrix": confusion_matrix(y_test, y_pred)
+    }
+    return metrics
+
+
+=== CODE CELL 70 (notebook idx 89) ===
+results = {}
+for name, pipeline in pipelines.items():
+    pipeline.fit(X_train, y_train)
+    metrics = evaluate_model(pipeline, X_test, y_test)
+    results[name] = metrics
+    print(f"\n📊 {name}")
+    for metric, value in metrics.items():
+        print(f"{metric}: \n{value if metric != 'Confusion Matrix' else value}")
+
+
+=== CODE CELL 71 (notebook idx 90) ===
+from sklearn.model_selection import cross_val_predict
+
+kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = {}
+
+for name, pipeline in pipelines.items():
+    y_pred = cross_val_predict(pipeline, X, y, cv=kfold)
+    y_proba = cross_val_predict(pipeline, X, y, cv=kfold, method='predict_proba')
+    
+    metrics = {
+        "Accuracy": accuracy_score(y, y_pred),
+        "Precision": precision_score(y, y_pred, average='macro'),
+        "Recall": recall_score(y, y_pred, average='macro'),
+        "F1 Score": f1_score(y, y_pred, average='macro'),
+        "ROC AUC": roc_auc_score(y, y_proba, multi_class='ovr') if y_proba is not None else np.nan,
+        "Confusion Matrix": confusion_matrix(y, y_pred)
+    }
+    cv_results[name] = metrics
+    print(f"\n🔁 K-Fold (5) | {name}")
+    for metric, value in metrics.items():
+        print(f"{metric}: \n{value if metric != 'Confusion Matrix' else value}")
+# Convert results to DataFrame for better visualization
+results_df = pd.DataFrame(cv_results).T
+results_df = results_df.sort_values("ROC AUC", ascending=False)   
+# Save the results DataFrame to a CSV file
+results_df.to_csv("model_evaluation_results.csv", index=True) 
+
+=== CODE CELL 72 (notebook idx 91) ===
+from sklearn.utils import resample
+
+bootstrap_results = {}
+B = 100
+
+for name, pipeline in pipelines.items():
+    scores = {"Accuracy": [], "Precision": [], "Recall": [], "F1 Score": [], "ROC AUC": []}
+    
+    for i in range(B):
+        X_resampled, y_resampled = resample(X, y, replace=True, random_state=i)
+        pipeline.fit(X_resampled, y_resampled)
+        y_pred = pipeline.predict(X_test)
+        y_proba = pipeline.predict_proba(X_test) if hasattr(pipeline, "predict_proba") else None
+        
+        scores["Accuracy"].append(accuracy_score(y_test, y_pred))
+        scores["Precision"].append(precision_score(y_test, y_pred, average='macro'))
+        scores["Recall"].append(recall_score(y_test, y_pred, average='macro'))
+        scores["F1 Score"].append(f1_score(y_test, y_pred, average='macro'))
+        if y_proba is not None:
+            scores["ROC AUC"].append(roc_auc_score(y_test, y_proba, multi_class='ovr'))
+    
+    avg_metrics = {metric: np.mean(vals) for metric, vals in scores.items()}
+    avg_metrics["Confusion Matrix"] = confusion_matrix(y_test, pipeline.predict(X_test))
+    
+    bootstrap_results[name] = avg_metrics
+    print(f"\n📈 Bootstrap (b=100) | {name}")
+    for metric, value in avg_metrics.items():
+        print(f"{metric}: \n{value if metric != 'Confusion Matrix' else value}")
+# Convert bootstrap results to DataFrame for better visualization
+# /*************  ✨ Windsurf Command 🌟  *************/
+bootstrap_results_df = pd.DataFrame(bootstrap_results).T
+
+
+=== CODE CELL 73 (notebook idx 92) ===
+# Dictionary to store test metrics
+test_results = {}
+
+for name, pipeline in pipelines.items():
+    pipeline.fit(X_train, y_train)
+    metrics = evaluate_model(pipeline, X_test, y_test)
+    test_results[name] = metrics
+    print(f"\n📊 Test Performance | {name}")
+    for metric, value in metrics.items():
+        print(f"{metric}: \n{value if metric != 'Confusion Matrix' else value}")
+
+
+=== CODE CELL 74 (notebook idx 93) ===
+import pandas as pd
+
+# Convert results to DataFrame
+results_df = pd.DataFrame(test_results).T
+results_df_sorted = results_df.sort_values(
+    by=["ROC AUC", "Accuracy", "Precision"],
+    ascending=False
+)
+top_models = results_df_sorted.loc[['Gradient Boosting']]       
+print("\n🏆 Top 3 Models Based on ROC AUC, Accuracy & Precision:")
+print(top_models[["Accuracy", "Precision", "ROC AUC"]])
+# Save the top models DataFrame to a CSV file
+results_df_sorted.to_csv("top_models_results.csv", index=True)
+
+
+=== CODE CELL 75 (notebook idx 94) ===
+import shap
+import numpy as np
+
+# 1. Transform data once
+X_transformed = preprocessor.transform(X_train)
+feature_names = preprocessor.get_feature_names_out()
+
+# Use a smaller sample for the background distribution to speed up Kernel/Permutation SHAP
+background_data = X_transformed[:100] 
+test_sample = X_transformed[:50] # Adjust size as needed
+
+for model_name in top_models.index:
+    print(f"\n🔍 SHAP Analysis for: {model_name}")
+    pipeline = pipelines[model_name]
+    classifier = pipeline.named_steps["classifier"]
+    
+    # Fit the pipeline
+    pipeline.fit(X_train, y_train)
+
+    # Logic for Multi-class SKLearn Gradient Boosting
+    if "ensemble" in classifier.__class__.__module__ and not "xgb" in model_name.lower():
+        # Wrap the prediction probability function
+        # We use a Kernel or Permutation explainer here
+        explainer = shap.Explainer(classifier.predict_proba, background_data, feature_names=feature_names)
+        shap_values = explainer(test_sample)
+        
+    elif "xgb" in classifier.__class__.__module__ or "lightgbm" in classifier.__class__.__module__:
+        # XGBoost and LightGBM still work with TreeExplainer even for multi-class
+        explainer = shap.TreeExplainer(classifier)
+        shap_values = explainer(test_sample)
+    
+    else:
+        # Fallback for other models
+        explainer = shap.Explainer(classifier.predict_proba, background_data, feature_names=feature_names)
+        shap_values = explainer(test_sample)
+
+    # 4. Plot Summary
+    # Note: for multi-class, we often plot a specific class or the mean absolute impact
+    shap.plots.bar(shap_values[:,:,1]) # Example: Impact on a specific stage, or use:
+    # shap.summary_plot(shap_values, test_sample, feature_names=feature_names)
+
+=== CODE CELL 76 (notebook idx 95) ===
+# Feature Importance using Permutation Importance (fixed to use pipeline)
+for model_name in top_models.index:
+    print(f"\n🔍 Permutation Importance for: {model_name}")
+    pipeline = pipelines[model_name]
+
+    # Fit on entire training set
+    pipeline.fit(X_train, y_train)
+
+    # Compute permutation importance on the pipeline (handles categorical preprocessing)
+    result = permutation_importance(
+        pipeline, X_test, y_test, n_repeats=30, random_state=42
+    )
+
+    # Use feature names from preprocessor
+    perm_importance_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": result.importances_mean
+    }).sort_values(by="Importance", ascending=False)
+
+    # Plot feature importances
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x="Importance", y="Feature", data=perm_importance_df.head(20), palette="viridis")
+    plt.title(f"Permutation Importance for {model_name}")
+    plt.show()
+
+=== CODE CELL 77 (notebook idx 97) ===
+
+# Define the directory where the models will be saved
+import os
+
+
+save_directory = r"..\Models"
+
+# Create the directory if it doesn't exist
+os.makedirs(save_directory, exist_ok=True)
+
+import joblib  # For saving models
+
+# Save each trained model pipeline
+for model_name, pipeline in pipelines.items():
+    save_path = f"{save_directory}\\{model_name.replace(' ', '_')}_pipeline.pkl"
+    joblib.dump(pipeline, save_path)
+
+print("\n✅ All models have been saved to the specified directory.")
+
+
+
