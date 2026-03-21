@@ -1,0 +1,12 @@
+Error: invalid non-printable character U+00A0 at line 11
+Problematic line (repr): '\xa0 \xa0 print(f"\\n🔍 SHAP Analysis for: {model_name}")'
+
+Has non-breaking space: True
+    Line 7: 'feature_names = preprocessor.get_feature_names_out()'
+    Line 8: ''
+    Line 9: '# SHAP Explanation for top 3'
+    Line 10: 'for model_name in top_models.index:'
+>>> Line 11: '\xa0 \xa0 print(f"\\n🔍 SHAP Analysis for: {model_name}")'
+    Line 12: '\xa0 \xa0 pipeline = pipelines[model_name]'
+    Line 13: '\xa0 \xa0 classifier = pipeline.named_steps["classifier"]'
+    Line 14: ''

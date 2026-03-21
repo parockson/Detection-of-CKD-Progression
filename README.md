@@ -1,96 +1,136 @@
-# Chronic Kidney Disease (CKD) Progression Prediction
+# 🩺 Detection of CKD Progression
 
-## 📌 Project Overview
-This project aims to predict the **progression of Chronic Kidney Disease (CKD)** using **machine learning models**. It integrates **clinical data** and applies **multiple classification algorithms** to predict CKD stages, helping in early intervention and treatment planning.
+A machine learning study that predicts **Chronic Kidney Disease (CKD) stage progression** using clinical and laboratory data, following the **CRISP-DM** framework.
 
-## 📂 Dataset Information
-- **Source:** [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/857/risk+factor+prediction+of+chronic+kidney+disease)
-- **Number of Instances:** 400
-- **Number of Features:** 28 (clinical and demographic data)
-- **Target Variable:** `ckd_stage` (CKD progression stage from 1 to 5)
-- **Feature Categories:**
-  - **Numerical:** Age, Blood Pressure (bp), Blood Glucose (bgr), Serum Creatinine (sc), Hemoglobin (hemo), etc.
-  - **Categorical:** Hypertension (htn), Diabetes Mellitus (dm), Coronary Artery Disease (cad), Anemia (ane), etc.
+---
 
-## 📊 Methodology
-We use the **CRISP-DM Framework** (Cross-Industry Standard Process for Data Mining):
-1. **Business Understanding** - Define the research objectives.
-2. **Data Understanding** - Exploratory Data Analysis (EDA) to assess data quality.
-3. **Data Preparation** - Handling missing values, outliers, and feature transformations.
-4. **Modeling** - Train multiple ML models.
-5. **Evaluation** - Compare models using performance metrics.
-6. **Deployment** - Save trained models for future use.
+## 📌 Overview
 
-## 🔧 Preprocessing Pipeline
-The preprocessing pipeline includes:
-- **Handling Missing Values:** Mean imputation (numerical) and mode imputation (categorical).
-- **Feature Engineering:** Encoding categorical variables using **One-Hot Encoding**.
-- **Feature Scaling:** Standardizing numerical features with **StandardScaler**.
-- **Feature Selection:** Removing highly correlated and clinically irrelevant features.
+Chronic Kidney Disease (CKD) is a silent, progressive condition that often goes undetected until significant kidney damage has occurred. This project leverages machine learning to:
 
-## 🚀 Machine Learning Models Used
-We implemented and compared the following models:
-1. **Random Forest Classifier**
-2. **XGBoost Classifier**
-3. **LightGBM Classifier**
-4. **Support Vector Machine (SVM)**
-5. **Logistic Regression**
+- Predict a patient's **CKD stage** (Stages 0–5) from clinical biomarkers
+- Identify the most **influential risk factors** driving progression
+- Compare multiple ML algorithms to find the most performant model for clinical use
 
-## 📈 Model Evaluation Metrics
-We evaluated models based on:
-- **Accuracy** - Overall correctness of predictions.
-- **Precision** - How many predicted positives were correct.
-- **Recall (Sensitivity)** - Ability to identify actual positives.
-- **F1 Score** - Balance between Precision and Recall.
-- **AUC-ROC Score** - Ability to distinguish between classes.
-- **Confusion Matrix** - Breakdown of actual vs. predicted classifications.
+The dataset is sourced from [Kaggle – CKD Stages Dataset](https://www.kaggle.com/datasets/angad2002/chronic-kidney-disease-ckd-stages-dataset) and contains **400 patient records** with **28 clinical features**.
 
-## 🔥 Results Summary
-| Model                | Accuracy | Precision | Recall | F1 Score | AUC-ROC |
-|----------------------|----------|-----------|--------|----------|---------|
-| Random Forest       | 97.50%   | 98.06%    | 97.50% | 97.59%   | 99.26   |
-| XGBoost            | 96.25%   | 97.38%    | 96.25% | 96.49%   | 99.78   |
-| LightGBM           | 96.25%   | 96.90%    | 96.25% | 96.33%   | 99.95   |
-| SVM                | 72.50%   | 70.54%    | 72.50% | 70.25%   | 94.92   |
-| Logistic Regression| 83.75%   | 83.58%    | 83.75% | 83.13%   | 96.61   |
+---
 
-## 🛠 How to Run the Project
-### **1️⃣ Install Dependencies**
+## 📂 Project Structure
+
+```
+Detection-of-CKD-Progression/
+│
+├── Datasets/
+│   └── 1/                          # Raw CKD dataset (CSV)
+│
+├── modelling/
+│   ├── notebook.ipynb              # Main analysis & modelling notebook
+│   └── model_evaluation_results.csv
+│
+├── Models/                         # Saved trained model pipelines (.pkl)
+│   ├── XGBoost_pipeline.pkl
+│   ├── LightGBM_pipeline.pkl
+│   ├── Gradient_Boosting_pipeline.pkl
+│   ├── Random_Forest_pipeline.pkl
+│   ├── ANN_(MLPClassifier)_pipeline.pkl
+│   ├── Logistic_Regression_pipeline.pkl
+│   └── SVM_pipeline.pkl
+│
+├── Analysis/                       # Exploratory analysis outputs
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 🧪 Dataset Features
+
+| Category | Features |
+|---|---|
+| **Demographics** | Age |
+| **Vitals** | Blood Pressure (`bp`) |
+| **Urine Tests** | Specific Gravity (`sg`), Albumin (`al`), Sugar (`su`), RBC (`rbc`), Pus Cells (`pc`), Bacteria (`ba`) |
+| **Blood Tests** | Blood Glucose (`bgr`), Blood Urea (`bu`), Serum Creatinine (`sc`), Sodium (`sod`), Potassium (`pot`), Hemoglobin (`hemo`), PCV, WBC Count (`wc`), RBC Count (`rc`) |
+| **Comorbidities** | Hypertension (`htn`), Diabetes Mellitus (`dm`), Coronary Artery Disease (`cad`) |
+| **Symptoms** | Appetite (`appet`), Pedal Edema (`pe`), Anemia (`ane`) |
+| **Target** | **GFR** (Glomerular Filtration Rate), **CKD Stage** (0–5) |
+
+> CKD stages are derived from GFR values using the clinically validated **CKD-EPI equation**.
+
+---
+
+## ⚙️ Methodology (CRISP-DM)
+
+1. **Business Understanding** — Define the clinical problem and objectives
+2. **Data Understanding** — Explore feature distributions, missing values, and class balance
+3. **Data Preparation** — Handle missing values, fix data types, encode categoricals, scale numerics via `Pipeline` + `ColumnTransformer`
+4. **Modelling** — Train and tune 7 classifiers
+5. **Evaluation** — Compare models on Accuracy, Precision, Recall, F1, ROC-AUC, and Confusion Matrix
+6. **Deployment** — Save best-performing pipelines via `joblib`
+
+---
+
+## 📊 Model Results
+
+| Model | Accuracy | F1 Score | ROC AUC |
+|---|---|---|---|
+| **Gradient Boosting** | **88.5%** | **87.2%** | **97.6%** |
+| LightGBM | 86.0% | 84.1% | 97.8% |
+| XGBoost | 85.5% | 84.0% | 97.9% |
+| Random Forest | 81.5% | 76.5% | 96.8% |
+| ANN (MLPClassifier) | 68.0% | 62.8% | 91.7% |
+| Logistic Regression | 67.5% | 59.8% | 91.7% |
+| SVM | 66.75% | 56.9% | 91.5% |
+
+> 🏆 **Gradient Boosting** achieved the best overall F1 Score and accuracy, making it the recommended model for CKD stage classification.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/parockson/Detection-of-CKD-Progression.git
+cd Detection-of-CKD-Progression
+```
+
+### 2. Set Up a Virtual Environment
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### **2️⃣ Run the Preprocessing Pipeline**
-```python
-python preprocessing.py
-```
-
-### **3️⃣ Train Models**
-```python
-python train_models.py
-```
-
-### **4️⃣ Evaluate Models**
-```python
-python evaluate_models.py
-```
-
-## 📌 Future Improvements
-- **Hyperparameter tuning** to improve model performance.
-- **Integration with a web app** for real-time predictions.
-- **Using deep learning models** for enhanced accuracy.
-
-## 📜 License
-This project is licensed under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license.
-
-## 🤝 Acknowledgments
-- **Eric Osei Opoku (PHD)** for guidance and supervison.
-- **Azubi Africa for training in ML** for the dataset.
-- **UCI Machine Learning Repository** for the dataset.
-- **Scikit-Learn, XGBoost, LightGBM** for machine learning models.
-- **Matplotlib & Seaborn** for data visualization.
+### 4. Run the Notebook
+Open `modelling/notebook.ipynb` in Jupyter or VS Code and run all cells.
 
 ---
-🔥 **Developed by:** Prince Rockson for an MSc Health Informatics Thesis  
-📧 **Contact:** parockson@gmail.com or parockson@st.knust.edu.gh  
 
+## 🔑 Key Libraries
+
+- **Data:** `pandas`, `numpy`
+- **Machine Learning:** `scikit-learn`, `xgboost`, `lightgbm`, `catboost`
+- **Visualization:** `matplotlib`, `seaborn`, `plotly`
+- **Imbalanced Data:** `imbalanced-learn` (SMOTE)
+- **Model Persistence:** `joblib`
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## 🙏 Acknowledgements
+
+- Dataset by [Angad2002 on Kaggle](https://www.kaggle.com/datasets/angad2002/chronic-kidney-disease-ckd-stages-dataset)
+- CKD staging criteria based on [KDIGO Clinical Practice Guidelines](https://kdigo.org/)

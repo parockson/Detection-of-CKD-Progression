@@ -1,0 +1,34 @@
+Line   1 : from sklearn.inspection import permutation_importance
+Line   2 : 
+Line   3 : # Fit preprocessor once for SHAP inputs
+Line   4 : X_transformed = preprocessor.fit_transform(X_train)
+Line   5 : 
+Line   6 : # Feature names after transformation
+Line   7 : feature_names = preprocessor.get_feature_names_out()
+Line   8 : 
+Line   9 : # SHAP Explanation for top 3
+Line  10 : for model_name in top_models.index:
+Line  11*:     print(f"\n🔍 SHAP Analysis for: {model_name}")
+Line  12*:     pipeline = pipelines[model_name]
+Line  13*:     classifier = pipeline.named_steps["classifier"]
+Line  14 : 
+Line  15*:     # Fit on entire training set
+Line  16*:     pipeline.fit(X_train, y_train)
+Line  17 : 
+Line  18*:     if "xgb" in classifier.__class__.__module__:
+Line  19*:         explainer = shap.TreeExplainer(classifier)
+Line  20*:     elif "lightgbm" in classifier.__class__.__module__:
+Line  21*:         explainer = shap.TreeExplainer(classifier)
+Line  22*:     elif "sklearn" in classifier.__module__:
+Line  23*:         explainer = shap.Explainer(classifier, X_transformed)
+Line  24*:     else:
+Line  25*:         explainer = shap.Explainer(classifier.predict, X_transformed)
+Line  26 : 
+Line  27*:     # Compute SHAP values (on a sample to speed up)
+Line  28*:     shap_values = explainer(X_transformed[:200])
+Line  29 : 
+Line  30*:     # Plot summary
+Line  31*:     shap.summary_plot(shap_values, X_transformed[:200], feature_names=feature_names, show=True)
+Line  32 : 
+Line  33 : 
+Line  34 : 
